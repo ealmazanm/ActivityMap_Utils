@@ -20,10 +20,30 @@ using namespace xn;
 const int REF_CAM = 1;
 
 //REF_CAM = 2
-const int MIN_X = -4500;
-const int MAX_X = 5500;
-const int MIN_Z = 500;
-const int MAX_Z = 5000;
+
+//values for data set workshp
+//const int MIN_X = -8500;
+//const int MAX_X = 8500;
+//const int MIN_Z = 500;
+//const int MAX_Z = 9500; 
+
+//values for dataset lab all
+//static const int MIN_X = -11000;
+//static const int MAX_X = 11000;
+//static const int MIN_Z = 500;
+//static const int MAX_Z = 9500;
+
+//const int MIN_X = -3500;
+//const int MAX_X = 3500;
+//const int MIN_Z = 500;
+//const int MAX_Z = 5000;
+
+//values for data single Kinect
+//const int MIN_X = -5500;
+//const int MAX_X = -1500;
+//const int MIN_Z = 500;
+//const int MAX_Z = 5800;
+
 
 const int YRes = 480;
 
@@ -31,18 +51,24 @@ const int YRes = 480;
 class ActivityMap_Utils
 {
 public:
+
+	static int MIN_X;
+	static int MAX_X;
+	static int MIN_Z;
+	static int MAX_Z;
+
 	ActivityMap_Utils(int);
 	ActivityMap_Utils(void);
 	~ActivityMap_Utils(void);
 
-	Mat* createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans);
+	void createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& background, int nFrame);
 
 	inline Size getResolution()
 	{
 		return Size(XRes, YRes);
 	}
 
-	inline int findCoordinate(float value, float minValue, float maxValue, double step) const
+	static inline int findCoordinate(float value, float minValue, float maxValue, double step)
 	{
 		if (value < minValue)
 			value = minValue;
@@ -51,11 +77,20 @@ public:
 		return (int)floor((value-minValue)/step);
 	}
 
+	static inline int findCoordinate_inv(float value, float minValue, float maxValue, double step)
+	{
+		return (int)floor((value*step) + minValue + (step/2));
+	}
+
+	static void getImageBinned(const Mat* frame, Mat& binned, Size binSz, bool flag);
+
+	static XnPoint3D* convert2Points(const XnDepthPixel*);
+
 	int depthStep;
-	int xStep;
+	int xStep;	
 
 private:
-	XnPoint3D* convert2Points(const XnDepthPixel*);
+	
 
 	int XRes;
 
