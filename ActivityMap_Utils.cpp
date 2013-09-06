@@ -10,26 +10,44 @@
 int ActivityMap_Utils::MAX_X = 11000;
 int ActivityMap_Utils::MIN_X = -11000;
 int ActivityMap_Utils::MAX_Z = 9700;
-int ActivityMap_Utils::MIN_Z = 500;
+int ActivityMap_Utils::MIN_Z = 0;
+
+//INITIALIZE VALUES
+int ActivityMap_Utils::Z_STEP = 20;
+int ActivityMap_Utils::X_STEP = 20;
+int ActivityMap_Utils::Z_VAR = 9200;
+int ActivityMap_Utils::X_VAR = 22000;
+int ActivityMap_Utils::X_RES = 1148;
+int ActivityMap_Utils::Y_RES = 480;
+
+float ActivityMap_Utils::RATIO = 0.418;
+int ActivityMap_Utils::CEILING_THRESHOLD = 13500;
+int ActivityMap_Utils::FLOOR_THRESHOLD = -2000;
 
 
-ActivityMap_Utils::ActivityMap_Utils(int ns):NUM_SENSORS(ns)
+ActivityMap_Utils::ActivityMap_Utils(float scale, int ns):NUM_SENSORS(ns)
 {	
-	DEPTH_VAR = abs(MIN_Z-MAX_Z);
-	X_VAR =  abs(MIN_X-MAX_X);
+	MAX_Z = scale*MAX_Z;
 
-	XRes = ceil(double(YRes)*(double(X_VAR)/double(DEPTH_VAR)));
+	Z_VAR = abs(MIN_Z-MAX_Z);
+	X_VAR =  Z_VAR/RATIO;
+	MIN_X = -X_VAR/2;
+	MAX_X = -MIN_X;
 
-	depthStep = ceil(double(DEPTH_VAR)/double(YRes));
-	xStep = ceil(double(X_VAR)/double(XRes));
+	Y_RES = scale*Y_RES;
+
+	X_RES = ceil(double(Y_RES)*(double(X_VAR)/double(Z_VAR)));
+
+	Z_STEP = ceil(double(Z_VAR)/double(Y_RES));
+	X_STEP = ceil(double(X_VAR)/double(X_RES));
 }
 
 ActivityMap_Utils::ActivityMap_Utils(void):NUM_SENSORS(3)
 {
-	DEPTH_VAR = abs(MIN_Z-MAX_Z);
+	Z_VAR = abs(MIN_Z-MAX_Z);
 	X_VAR =  abs(MIN_X-MAX_X);
 
-	XRes = ceil(double(YRes)*(double(X_VAR)/double(DEPTH_VAR)));
+	X_RES = ceil(double(Y_RES)*(double(X_VAR)/double(Z_VAR)));
 }
 
 ActivityMap_Utils::~ActivityMap_Utils(void)
@@ -47,7 +65,22 @@ void assignPointsToMat(XnPoint3D* realPoints, Mat& out)
 	}
 }
 
-void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& activityMap, int nFrame)
+
+Point ActivityMap_Utils::findMoACoordinate(const XnPoint3D* p, int threshRange)
+{
+	float range = sqrtf(pow(p->X,2) + pow(p->Z,2));
+	Point out = Point(-1,-1);
+	if (p->X > MIN_X && p->X < MAX_X && p->Z < MAX_Z && p->Y < CEILING_THRESHOLD && p->Y > FLOOR_THRESHOLD && range < threshRange)
+	{
+		out.x = floor((p->X-MIN_X)/X_STEP);
+		out.y = (Y_RES - 1) - floor((p->Z/Z_STEP));
+		//out.y = (Y_RES - 1) - floor(((p->Z-MIN_Z)/Z_STEP));
+	}
+	return out;
+}
+
+
+void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& activityMap, int nFrame, int thresh)
 {
 	////create height path
 	//char* path1 = "d:\\Emilio\\Tracking\\DataSet\\Heights\\height_";
@@ -66,7 +99,7 @@ void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPi
 
 	//Mat* activityMap = new Mat(Size(XRes, YRes), CV_8UC3);
 	Utils::initMat3u(activityMap, 255);
-	Mat highestMap (YRes, XRes, CV_32F);
+	Mat highestMap (Y_RES, X_RES, CV_32F);
 	Utils::initMatf(highestMap, -50000);
 //	XnPoint3D** allRealPoints = new XnPoint3D*[NUM_SENSORS];
 
@@ -107,17 +140,16 @@ void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPi
 					p.X = allPtr[0];
 					p.Y = allPtr[1];
 					p.Z = allPtr[2];
-					if (p.Z > 0 && p.Z < MAX_Z && p.Y > -400)// && p.Y < 0) // threshold the ceiling (hopefully)
-					{
-						int xCoor = findCoordinate((p.X-shifted), MIN_X, MAX_X, xStep);					
-						int yC = findCoordinate(p.Z, MIN_Z, MAX_Z, depthStep);
-						int yCoor = (YRes-1) - yC;
 
-						float* ptr_h = highestMap.ptr<float>(yCoor);
+					Point p2D = findMoACoordinate(&p, thresh);
+
+					if (p2D.x != -1 && p2D.y != -1)
+					{
+						float* ptr_h = highestMap.ptr<float>(p2D.y);
 				
-						if (p.Y > ptr_h[xCoor])
+						if (p.Y > ptr_h[p2D.x])
 						{
-							ptr_h[xCoor] = p.Y;
+							ptr_h[p2D.x] = p.Y;
 							XnRGB24Pixel color = rgbMaps[iter][i*XN_VGA_X_RES+j];
 			///TEST TO FIND OUT CAMERA POINTS
 							//float errorRight = (-1.8427*xCoor + 1560) - yCoor;
@@ -137,15 +169,20 @@ void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPi
 			//END TEST
 							if (!trans)
 							{
-								circle(activityMap, Point((XRes/NUM_SENSORS)*iter+xCoor, yCoor), 1, cvScalar(color.nBlue,color.nGreen, color.nRed), 2);
-							}
-							else
-							{
-								uchar* ptr = activityMap.ptr<uchar>(yCoor);
-								//circle(activityMap, Point(xCoor, yCoor), 1, cvScalar(color.nBlue,color.nGreen, color.nRed), 2);
+								uchar* ptr = activityMap.ptr<uchar>(p2D.y);
+								//circle(activityMap, Point((XRes/NUM_SENSORS)*iter+xCoor, yCoor), 1, cvScalar(color.nBlue,color.nGreen, color.nRed), 2);
+								int xCoor = (X_RES/NUM_SENSORS)*iter+p2D.x;
 								ptr[3*xCoor] = color.nBlue;
 								ptr[3*xCoor+1] = color.nGreen;
 								ptr[3*xCoor+2] = color.nRed;
+							}
+							else
+							{
+								uchar* ptr = activityMap.ptr<uchar>(p2D.y);
+								//circle(activityMap, Point(xCoor, yCoor), 1, cvScalar(color.nBlue,color.nGreen, color.nRed), 2);
+								ptr[3*p2D.x] = color.nBlue;
+								ptr[3*p2D.x+1] = color.nGreen;
+								ptr[3*p2D.x+2] = color.nRed;
 							}
 						}
 					}

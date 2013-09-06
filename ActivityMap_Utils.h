@@ -45,37 +45,55 @@ const int REF_CAM = 1;
 //const int MAX_Z = 5800;
 
 
-const int YRes = 480;
-
-
 class ActivityMap_Utils
 {
 public:
+
+	static float RATIO;
+	static int CEILING_THRESHOLD;
+	static int FLOOR_THRESHOLD;
+
 
 	static int MIN_X;
 	static int MAX_X;
 	static int MIN_Z;
 	static int MAX_Z;
+	//Discretization step
+	static int Z_STEP;
+	static int X_STEP;
+	//Range
+	static int Z_VAR;
+	static int X_VAR;
 
-	ActivityMap_Utils(int);
+	//Discrete repr. resolution
+	static int X_RES;
+	static int Y_RES;
+
+	/*
+	float: scale factor for MAX_Z
+	float: number of sensors
+	*/
+	ActivityMap_Utils(float, int);
 	ActivityMap_Utils(void);
 	~ActivityMap_Utils(void);
 
-	void createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& background, int nFrame);
+	void createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& background, int nFrame, int thresh);
 
-	inline Size getResolution()
+	inline Size getResolution() const
 	{
-		return Size(XRes, YRes);
+		return Size(X_RES, Y_RES);
 	}
 
-	static inline int findCoordinate(float value, float minValue, float maxValue, double step)
+	/*static inline int findCoordinate(float value, float minValue, float maxValue, double step)
 	{
 		if (value < minValue)
 			value = minValue;
 		if (value > maxValue)
 			value = maxValue;
 		return (int)floor((value-minValue)/step);
-	}
+	}*/
+
+	static Point findMoACoordinate(const XnPoint3D* p, int threshRange);
 
 	static inline int findCoordinate_inv(float value, float minValue, float maxValue, double step)
 	{
@@ -86,17 +104,10 @@ public:
 
 	static XnPoint3D* convert2Points(const XnDepthPixel*);
 
-	int depthStep;
-	int xStep;	
+
 
 private:
 	
-
-	int XRes;
-
 	const int NUM_SENSORS;
-
-	int DEPTH_VAR;
-	int X_VAR;
 
 };
