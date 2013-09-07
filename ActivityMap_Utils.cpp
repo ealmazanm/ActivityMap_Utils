@@ -11,6 +11,7 @@ int ActivityMap_Utils::MAX_X = 11000;
 int ActivityMap_Utils::MIN_X = -11000;
 int ActivityMap_Utils::MAX_Z = 9700;
 int ActivityMap_Utils::MIN_Z = 0;
+int ActivityMap_Utils::MAX_Z_TRANS = 9700;
 
 //INITIALIZE VALUES
 int ActivityMap_Utils::Z_STEP = 20;
@@ -21,13 +22,15 @@ int ActivityMap_Utils::X_RES = 1148;
 int ActivityMap_Utils::Y_RES = 480;
 
 float ActivityMap_Utils::RATIO = 0.418;
-int ActivityMap_Utils::CEILING_THRESHOLD = 13500;
-int ActivityMap_Utils::FLOOR_THRESHOLD = -2000;
+int ActivityMap_Utils::CEILING_THRESHOLD = 1500;
+int ActivityMap_Utils::FLOOR_THRESHOLD = -3000;
 
 
 ActivityMap_Utils::ActivityMap_Utils(float scale, int ns):NUM_SENSORS(ns)
 {	
 	MAX_Z = scale*MAX_Z;
+
+	MAX_Z_TRANS = MAX_Z/(cosf(KinectSensor::KINECT_HORIZ_FOV/2));
 
 	Z_VAR = abs(MIN_Z-MAX_Z);
 	X_VAR =  Z_VAR/RATIO;
@@ -70,7 +73,7 @@ Point ActivityMap_Utils::findMoACoordinate(const XnPoint3D* p, int threshRange)
 {
 	float range = sqrtf(pow(p->X,2) + pow(p->Z,2));
 	Point out = Point(-1,-1);
-	if (p->X > MIN_X && p->X < MAX_X && p->Z < MAX_Z && p->Y < CEILING_THRESHOLD && p->Y > FLOOR_THRESHOLD && range < threshRange)
+	if (p->X > MIN_X && p->X < MAX_X && p->Z < MAX_Z_TRANS && p->Y < CEILING_THRESHOLD && p->Y > FLOOR_THRESHOLD && range < threshRange)
 	{
 		out.x = floor((p->X-MIN_X)/X_STEP);
 		out.y = (Y_RES - 1) - floor((p->Z/Z_STEP));

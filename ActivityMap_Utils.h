@@ -58,6 +58,7 @@ public:
 	static int MAX_X;
 	static int MIN_Z;
 	static int MAX_Z;
+	static int MAX_Z_TRANS; //MAXIMUM DEPTH FOR POINTS TRANSFORMED (CALIBRATED)
 	//Discretization step
 	static int Z_STEP;
 	static int X_STEP;
