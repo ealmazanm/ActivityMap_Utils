@@ -22,8 +22,8 @@ int ActivityMap_Utils::X_RES = 1148;
 int ActivityMap_Utils::Y_RES = 480;
 
 float ActivityMap_Utils::RATIO = 0.418;
-int ActivityMap_Utils::CEILING_THRESHOLD = 1500;
-int ActivityMap_Utils::FLOOR_THRESHOLD = -3000;
+int ActivityMap_Utils::CEILING_THRESHOLD = -400;
+int ActivityMap_Utils::FLOOR_THRESHOLD = -2400;
 
 
 ActivityMap_Utils::ActivityMap_Utils(float scale, int ns):NUM_SENSORS(ns)
@@ -83,18 +83,9 @@ Point ActivityMap_Utils::findMoACoordinate(const XnPoint3D* p, int threshRange)
 }
 
 
-void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& activityMap, int nFrame, int thresh)
+void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& activityMap, int nFrame, int thresh, float* timeIntervals)
 {
-	////create height path
-	//char* path1 = "d:\\Emilio\\Tracking\\DataSet\\Heights\\height_";
-	//char pathFull[100];
-	//char nFrameStr[10];
-	//itoa(nFrame, nFrameStr, 10);
-	//strcpy(pathFull, path1);
-	//strcat(pathFull, nFrameStr);
-	//strcat(pathFull, ".yml");
-
-
+	clock_t startTime_tmp;
 	//Fits the noncalibrated map in an image
 	int shifted = 0;
 	if (!trans)
@@ -114,10 +105,20 @@ void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPi
 	{
 		allRealPointsMat[i] = Mat(numPoints, 3, CV_32F);
 		//create list of xnPoint3D
+		startTime_tmp = clock();
 		XnPoint3D* depthPoints = convert2Points(depthMaps[i]); // allocates memory [Xn_vga_X_res*xn_vga_y_res]
+		timeIntervals[0] += clock() - startTime_tmp; //time debugging
+
+		startTime_tmp = clock();
 		XnPoint3D* realPoints = kinects[i].arrayBackProject(depthPoints); //allocates memory [Xn_vga_X_res*xn_vga_y_res]
+		timeIntervals[1] += clock() - startTime_tmp; //time debugging
+
 		if (trans)
+		{
+			startTime_tmp = clock();
 			kinects[i].transformArray(realPoints, allRealPointsMat[i]);
+			timeIntervals[2] += clock() - startTime_tmp; //time debugging
+		}
 		else
 			assignPointsToMat(realPoints, allRealPointsMat[i]);
 
@@ -144,7 +145,19 @@ void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPi
 					p.Y = allPtr[1];
 					p.Z = allPtr[2];
 
-					Point p2D = findMoACoordinate(&p, thresh);
+					startTime_tmp = clock();
+					//Point p2D = findMoACoordinate(&p, thresh);
+					int X = p.X;
+					int Y = p.Y;
+					int Z = p.Z;
+					float range = sqrtf(powf(X,2) + powf(Z,2));
+					Point p2D = Point(-1,-1);
+					if (X > MIN_X && X < MAX_X && Z < MAX_Z_TRANS && Y < CEILING_THRESHOLD && Y > FLOOR_THRESHOLD && range < thresh)
+					{
+						p2D.x = floorf((X-MIN_X)/X_STEP);
+						p2D.y = (Y_RES - 1) - floorf((Z/Z_STEP));
+					}
+					timeIntervals[3] += clock() - startTime_tmp; //time debugging
 
 					if (p2D.x != -1 && p2D.y != -1)
 					{

@@ -78,7 +78,7 @@ public:
 	ActivityMap_Utils(void);
 	~ActivityMap_Utils(void);
 
-	void createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& background, int nFrame, int thresh);
+	void createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& background, int nFrame, int thresh, float* timeIntevals);
 
 	inline Size getResolution() const
 	{
