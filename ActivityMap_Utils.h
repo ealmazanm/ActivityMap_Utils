@@ -50,8 +50,8 @@ class ActivityMap_Utils
 public:
 
 	static float RATIO;
-	static int CEILING_THRESHOLD;
-	static int FLOOR_THRESHOLD;
+//	static const int CEILING_THRESHOLD;
+//	static const int FLOOR_THRESHOLD;
 
 
 	static int MIN_X;
@@ -78,7 +78,7 @@ public:
 	ActivityMap_Utils(void);
 	~ActivityMap_Utils(void);
 
-	void createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& background, int nFrame, int thresh, float* timeIntevals);
+	void createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& background, int nFrame, int thresh, float* timeIntevals, int ceilingThresh, int floorThresh);
 
 	inline Size getResolution() const
 	{
@@ -94,7 +94,7 @@ public:
 		return (int)floor((value-minValue)/step);
 	}*/
 
-	static Point findMoACoordinate(const XnPoint3D* p, int threshRange);
+	static Point findMoACoordinate(const XnPoint3D* p, int threshRange, int ceilingThresh, int floorThresh);
 
 	static inline int findCoordinate_inv(float value, float minValue, float maxValue, double step)
 	{

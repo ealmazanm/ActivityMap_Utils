@@ -22,8 +22,8 @@ int ActivityMap_Utils::X_RES = 1148;
 int ActivityMap_Utils::Y_RES = 480;
 
 float ActivityMap_Utils::RATIO = 0.418;
-int ActivityMap_Utils::CEILING_THRESHOLD = -400;
-int ActivityMap_Utils::FLOOR_THRESHOLD = -2400;
+//const int ActivityMap_Utils::CEILING_THRESHOLD = 300;
+//const int ActivityMap_Utils::FLOOR_THRESHOLD = -2000;
 
 
 ActivityMap_Utils::ActivityMap_Utils(float scale, int ns):NUM_SENSORS(ns)
@@ -69,21 +69,21 @@ void assignPointsToMat(XnPoint3D* realPoints, Mat& out)
 }
 
 
-Point ActivityMap_Utils::findMoACoordinate(const XnPoint3D* p, int threshRange)
+Point ActivityMap_Utils::findMoACoordinate(const XnPoint3D* p, int threshRange, int ceilingThresh, int floorThresh)
 {
 	float range = sqrtf(pow(p->X,2) + pow(p->Z,2));
 	Point out = Point(-1,-1);
-	if (p->X > MIN_X && p->X < MAX_X && p->Z < MAX_Z_TRANS && p->Y < CEILING_THRESHOLD && p->Y > FLOOR_THRESHOLD && range < threshRange)
+	if (p->X > MIN_X && p->X < MAX_X && p->Z < MAX_Z_TRANS && p->Y < ceilingThresh && p->Y > floorThresh && range < threshRange)
 	{
-		out.x = floor((p->X-MIN_X)/X_STEP);
-		out.y = (Y_RES - 1) - floor((p->Z/Z_STEP));
+		out.x = ((p->X-MIN_X)/X_STEP + 0.5);
+		out.y = (Y_RES - 1) - (int)((p->Z/Z_STEP) + 0.5); //round to the nearest integer
 		//out.y = (Y_RES - 1) - floor(((p->Z-MIN_Z)/Z_STEP));
 	}
 	return out;
 }
 
 
-void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& activityMap, int nFrame, int thresh, float* timeIntervals)
+void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPixel** depthMaps, const XnRGB24Pixel** rgbMaps, bool trans, Mat& activityMap, int nFrame, int thresh, float* timeIntervals, int ceilingThresh, int floorThresh)
 {
 	clock_t startTime_tmp;
 	//Fits the noncalibrated map in an image
@@ -92,7 +92,10 @@ void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPi
 		shifted = 3400;
 
 	//Mat* activityMap = new Mat(Size(XRes, YRes), CV_8UC3);
-	Utils::initMat3u(activityMap, 255);
+	activityMap = Mat::zeros(activityMap.size(), CV_8UC1) + 255;
+	
+	//Utils::initMat3u(activityMap, 255);
+
 	Mat highestMap (Y_RES, X_RES, CV_32F);
 	Utils::initMatf(highestMap, -50000);
 //	XnPoint3D** allRealPoints = new XnPoint3D*[NUM_SENSORS];
@@ -152,14 +155,14 @@ void ActivityMap_Utils::createActivityMap(KinectSensor* kinects, const XnDepthPi
 					int Z = p.Z;
 					float range = sqrtf(powf(X,2) + powf(Z,2));
 					Point p2D = Point(-1,-1);
-					if (X > MIN_X && X < MAX_X && Z < MAX_Z_TRANS && Y < CEILING_THRESHOLD && Y > FLOOR_THRESHOLD && range < thresh)
+					if (X > MIN_X && X < MAX_X && Z < MAX_Z_TRANS && Y < ceilingThresh && Y > floorThresh && range < thresh)
 					{
 						p2D.x = floorf((X-MIN_X)/X_STEP);
 						p2D.y = (Y_RES - 1) - floorf((Z/Z_STEP));
 					}
 					timeIntervals[3] += clock() - startTime_tmp; //time debugging
 
-					if (p2D.x != -1 && p2D.y != -1)
+					if (p2D.x != -1 && p2D.y != -1  && p2D.y < highestMap.rows)
 					{
 						float* ptr_h = highestMap.ptr<float>(p2D.y);
 				
